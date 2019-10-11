@@ -50,7 +50,7 @@ foreach($User in $NewUsers){
   $Attributes = @{
     Enabled = $true
     ChangePasswordAtLogon = $false
-    Path = "OU=Users,OU=CyberArk,DC=CyberArkdemo,DC=Com"
+    Path = "OU=$($OrgUnit)"
     Name = "$($User.GivenName) $($User.SurName).adm"
     UserPrincipalName = "$($User.GivenName).$($User.SurName).adm@cyberarkdemo.com"
     SamAccountName = "$($User.GivenName).$($User.SurName).adm"
@@ -118,9 +118,9 @@ Try {
 
 # Use the pspete PowerShell Module to interact with the Rest API and create new safes / onboard accounts
 foreach($User in $NewUsers){
-	# Create new safe based on user name - append personal to safe name
-	Write-Host("`n$(Get-Date) | INFO | Creating new safe - $($User.GivenName)-$($User.SurName)-Personal")
-	Try {
+  # Create new safe based on user name - append personal to safe name
+  Write-Host("`n$(Get-Date) | INFO | Creating new safe - $($User.GivenName)-$($User.SurName)-Personal")
+  Try {
     $addsafe = Add-PASSafe -SafeName "$($User.GivenName)-$($User.SurName)-Personal" -Description "$($User.GivenName)-$($User.SurName)-Personal" -ManagingCPM PasswordManager -NumberOfVersionsRetention 10 -ErrorAction Stop
     Write-Host -ForegroundColor Green "$(Get-Date) | SUCCESS | $($addsafe.SafeName) Created"
   } Catch {
@@ -128,7 +128,7 @@ foreach($User in $NewUsers){
     Write-Host -ForegroundColor Red "$(Get-Date) | ERROR | $ErrorMessage"
   }
     
-	# Allow the built in Administrator to view and use accounts in their own safe
+  # Allow the built in Administrator to view and use accounts in their own safe
   Write-Host("`n$(Get-Date) | INFO | Setting permissions on safe - $($User.GivenName)-$($User.SurName)-Personal")
   Try {
     $addadmin = Add-PASSafeMember -SafeName "$($User.GivenName)-$($User.SurName)-Personal" -MemberName "Administrator" -UseAccounts $true -ListAccounts $true -RetrieveAccounts $true -ViewAuditLog $true -ViewSafeMembers $true -ManageSafe $true -DeleteAccounts $true -ErrorAction Stop
@@ -148,14 +148,14 @@ foreach($User in $NewUsers){
   }
 
   # Add the users account to the safe
-	# Convert temporary Password to SecureString
-	$Password = ConvertTo-SecureString -String "Secret1337$" -AsPlainText -Force
-	# Additional account details
-	$platformAccountProperties = @{
-		"LOGONDOMAIN"="cyberarkdemo.com"
-	}
+  # Convert temporary Password to SecureString
+  $Password = ConvertTo-SecureString -String "Secret1337$" -AsPlainText -Force
+  # Additional account details
+  $platformAccountProperties = @{
+    "LOGONDOMAIN"="cyberarkdemo.com"
+  }
 
-	# Add Account to users new safe
+  # Add Account to users new safe
   Write-Host("`n$(Get-Date) | INFO | Adding $($User.GivenName).$($User.SurName).adm Administrator Account to the $($User.GivenName)-$($User.SurName)-Personal Safe")
   Try { 
     $newaccount = Add-PASAccount -secretType Password -secret $Password -SafeName "$($User.GivenName)-$($User.SurName)-Personal" -PlatformID "WinDomain" -Address "cyberarkdemo.com" -Username "$($User.GivenName).$($User.SurName).adm" -platformAccountProperties $platformAccountProperties -ErrorAction Stop
@@ -165,10 +165,10 @@ foreach($User in $NewUsers){
     Write-Host -ForegroundColor Red "$(Get-Date) | ERROR | $ErrorMessage"
   }	
 	
-	# Reconcile account password to an unkown password
+  # Reconcile account password to an unkown password
   write-host("`nINFO: Reconciling $($User.GivenName).$($User.SurName).adm Administrator Account Password")
   Write-Host("INFO: Account ID = $($newaccount.id)")
-	Try {
+  Try {
     Invoke-PASCPMOperation -AccountID $($newaccount.id) -ReconcileTask -ErrorAction Stop
     Write-Host -ForegroundColor Green "$(Get-Date) | SUCCESS | $($User.GivenName).$($User.SurName).adm Administrator Account reconcile action started"
   } Catch {
