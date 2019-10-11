@@ -29,40 +29,39 @@ $NewUsers = Get-ADUser -Filter {whenCreated -ge $When} -SearchBase $OrgUnit -Pro
 
 # Check to see if any new users have been found
 if($NewUsers.count -eq 0){
-    Write-Host -ForegroundColor Yellow "$(Get-Date) | WARNING | No new users detected, exiting"
-    exit
-    # Add script exit here
+  Write-Host -ForegroundColor Yellow "$(Get-Date) | WARNING | No new users detected, exiting"
+  exit
 } else{
-    Write-Host -ForegroundColor Green "$(Get-Date) | INFO | $($NewUsers.count) new users detected..."
+  Write-Host -ForegroundColor Green "$(Get-Date) | INFO | $($NewUsers.count) new users detected..."
 }
 
 # Cycle through users and add them to Active Directory and then add them to domain admins
 foreach($User in $NewUsers){
   # Add newly created users to domain admins group
   write-host("`n$(Get-Date) | INFO | Adding $($User.GivenName) $($User.Surname) to Vault Users Group")
-	Try {
+  Try {
     Add-ADGroupMember -Identity "CyberarkVaultUsers" -Member $User -ErrorAction Stop
     Write-Host -ForegroundColor Green "$(Get-Date) | SUCCESS | $($User.GivenName) $($User.Surname) to Vault Users Group"
   } Catch {
     $ErrorMessage = $_.Exception.Message
     Write-Host -ForegroundColor Red "$(Get-Date) | ERROR | $ErrorMessage"
   }
-	# Create attributes for each user
-	$Attributes = @{
-		Enabled = $true
-		ChangePasswordAtLogon = $false
-		Path = "OU=Users,OU=CyberArk,DC=CyberArkdemo,DC=Com"
-		Name = "$($User.GivenName) $($User.SurName).adm"
-		UserPrincipalName = "$($User.GivenName).$($User.SurName).adm@cyberarkdemo.com"
-		SamAccountName = "$($User.GivenName).$($User.SurName).adm"
-		GivenName = $User.GivenName
-		Surname = $User.SurName
-		Company = "CyberArk"
-		AccountPassword = "TotallyFakePassword123" | ConvertTo-SecureString -AsPlainText -Force
-	}
-	# Create users based on attributes and add to domain admins group
+  # Create attributes for each user
+  $Attributes = @{
+    Enabled = $true
+    ChangePasswordAtLogon = $false
+    Path = "OU=Users,OU=CyberArk,DC=CyberArkdemo,DC=Com"
+    Name = "$($User.GivenName) $($User.SurName).adm"
+    UserPrincipalName = "$($User.GivenName).$($User.SurName).adm@cyberarkdemo.com"
+    SamAccountName = "$($User.GivenName).$($User.SurName).adm"
+    GivenName = $User.GivenName
+    Surname = $User.SurName
+    Company = "CyberArk"
+    AccountPassword = "TotallyFakePassword123" | ConvertTo-SecureString -AsPlainText -Force
+  }
+  # Create users based on attributes and add to domain admins group
   write-host("$(Get-Date) | INFO | Creating $($User.GivenName) $($User.Surname) administrator account $($Attributes.SamAccountName)")
-	Try {
+  Try {
     New-ADUser @Attributes -ErrorAction Stop
     Write-Host -ForegroundColor Green "$(Get-Date) | SUCCESS | Created new administrator account - $($Attributes.SamAccountName)"
   } Catch {
