@@ -81,14 +81,23 @@ foreach($User in $NewUsers){
 # Use AAM to authenticate script and retrieve credentials that can use the CyberArk Management REST API
 # Note: This is done using SOAP but can also be accomplished via REST API calls
 write-host "`n$(Get-Date) | INFO | Authenticating with CyberArk Vault via AAM Central Credential Provider"
-$URI = "https://components.cyberarkdemo.com/aimwebservice/v1.1/aim.asmx?WSDL"
-$proxy = New-WebServiceProxy -Uri $URI -UseDefaultCredential
-$t = $proxy.getType().namespace
-$request = New-Object ($t + ".passwordRequest")
-$request.AppID = "RESTAPI";
-$request.Query = "Safe=AAM Dual Accounts;Folder=Root;Object=Operating System-WinDomain-cyberarkdemo.com-user_one"
-$response = $proxy.GetPassword($request)
-If ($response.content) { 
+function Get-AIMPassword ([string]$PVWA_URL, [string]$AppID, [string]$Safe, [string]$ObjectName) {
+    # Declaration
+    $fetchAIMPassword = "${PVWA_URL}/AIMWebService/api/Accounts?AppID=${AppID}&Safe=${Safe}&Folder=Root&Object=${ObjectName}"
+    # Execution
+    try {
+        $response = Invoke-RestMethod -Uri $fetchAIMPassword -Method GET -ContentType "application/json" -ErrorVariable aimResultErr
+        Return $response.content
+    }
+    catch {
+        Write-Host "StatusCode: " $_.Exception.Response.StatusCode.value__
+        Write-Host "StatusDescription: " $_.Exception.Response.StatusDescription
+        Write-Host "Response: " $_.Exception.Message
+        Return $false
+    }
+}
+$password = Get-AIMPassword -PVWA_URL "https://comp01.cybr.com" -AppID "RESTAPI" -Safe "AAM Dual Account" -ObjectName "Operating System-WinDomain-cyberarkdemo.com-user_one"
+If ($password.content) { 
   Write-Host -ForegroundColor Green "$(Get-Date) | SUCCESS | Retrieved Rest API Credentials via AAM" 
 } else {
   Write-Host -ForegroundColor Red "$(Get-Date) | ERROR | Rest API Credentials could not be retrieved"
